@@ -14,86 +14,114 @@ QUEUE_NAME = "orders_queue"
 DLQ_NAME = "orders_dlq"
 DLX_NAME = "dlx_exchange"
 
+# Configuración de Resiliencia
+MAX_RETRIES = 3
+
 async def init_db():
     await Tortoise.init(db_url=DB_URL, modules={"models": ["models"]})
     await Tortoise.generate_schemas()
 
 async def process_order(ch, method, properties, body):
-    """
-    Lógica de negocio: Validar inventario y pago.
-    """
     data = json.loads(body)
     order_uuid = data.get("order_uuid")
-    print(f" [->] Recibido pedido: {order_uuid}")
-
-    # 1. Patrón IDEMPOTENCIA: Verificar si ya fue procesado
-    # Buscamos en DB si este pedido ya no está en PENDING
-    order = await Order.get_or_none(order_uuid=order_uuid)
     
+    # Leer contador de reintentos de los headers (si no existe, es 0)
+    headers = properties.headers or {}
+    retry_count = headers.get("x-retry-count", 0)
+
+    print(f" [->] Recibido pedido: {order_uuid} | Intento: {retry_count + 1}/{MAX_RETRIES + 1}")
+
+    # --- PATRÓN IDEMPOTENCIA ---
+    order = await Order.get_or_none(order_uuid=order_uuid)
     if not order:
-        print(f" [!] Pedido {order_uuid} no encontrado en DB. Ignorando.")
+        print(f" [!] Pedido no encontrado en DB. Ignorando.")
         ch.basic_ack(delivery_tag=method.delivery_tag)
         return
 
     if order.status != "PENDING":
-        print(f" [i] Pedido {order_uuid} ya procesado (Estado: {order.status}). Saltando (Idempotencia).")
+        print(f" [i] Pedido ya procesado (Estado: {order.status}). Idempotencia activada.")
         ch.basic_ack(delivery_tag=method.delivery_tag)
         return
 
     try:
-        # --- SIMULACIÓN DE PROCESO DE NEGOCIO ---
-        print(" [..] Validando stock y procesando pago...")
-        time.sleep(2) # Simular latencia
+        # --- SIMULACIÓN DE PROCESO ---
+        time.sleep(1)
         
-        # --- SIMULACIÓN DE FALLO CONTROLADO (Para la defensa) ---
-        # Si el cliente se llama "ERROR", forzamos un fallo para probar la DLQ
         if "ERROR" in data.get("customer_name", "").upper():
             raise Exception("Fallo simulado de conexión con Pasarela de Pagos")
 
-        # 2. Actualizar estado en DB
+        # --- ÉXITO ---
         order.status = "CONFIRMED"
         await order.save()
+        print(f" [OK] Pedido {order_uuid} confirmado.")
         
-        print(f" [OK] Pedido {order_uuid} confirmado exitosamente.")
+        # --- NUEVO: PUBLICAR EVENTO FANOUT (PUB/SUB) ---
+        # Declaramos el exchange por si acaso no existe
+        ch.exchange_declare(exchange='notifications_exchange', exchange_type='fanout')
         
-        # Aquí podrías publicar el evento "OrderConfirmed" (Pub/Sub) para notificaciones
+        message = json.dumps({
+            "order_uuid": order_uuid,
+            "customer_name": data.get("customer_name"),
+            "status": "CONFIRMED"
+        })
         
-        # Confirmar a RabbitMQ que todo salió bien
+        ch.basic_publish(
+            exchange='notifications_exchange', # ¡A todos los que escuchen!
+            routing_key='', 
+            body=message
+        )
+        print(f" [📢] Evento publicado a notifications_exchange")
+        # -----------------------------------------------
+        
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except Exception as e:
-        print(f" [X] Error procesando pedido: {str(e)}")
-        # NACK negativo: Le decimos a RabbitMQ que NO procesamos el mensaje.
-        # requeue=False es CLAVE aquí: al decir False, RabbitMQ lo manda al DLQ 
-        # (porque configuraremos la cola con Dead Letter Exchange abajo).
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        print(f" [X] Error: {str(e)}")
+        
+        # --- ESTRATEGIA DE RETRIES (Backoff manual) ---
+        if retry_count < MAX_RETRIES:
+            print(f" [..] Reintentando en 2 segundos... (Intento {retry_count + 1})")
+            time.sleep(2) # Backoff simple
+            
+            # Republicamos el mensaje a la misma cola, pero aumentamos el contador
+            headers['x-retry-count'] = retry_count + 1
+            
+            ch.basic_publish(
+                exchange='',
+                routing_key=QUEUE_NAME,
+                body=body,
+                properties=pika.BasicProperties(
+                    delivery_mode=2,
+                    headers=headers # Pasamos el contador actualizado
+                )
+            )
+            # Confirmamos el mensaje viejo (porque ya publicamos el nuevo)
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+        else:
+            print(f" [!!!] Max reintentos alcanzados. Enviando a DLQ.")
+            # Nack con requeue=False envía al DLQ configurado
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 def start_consumer():
     params = pika.URLParameters(RABBITMQ_URL)
     connection = pika.BlockingConnection(params)
     channel = connection.channel()
 
-    # 1. Declarar el Exchange de Muertos (DLX)
+    # Configuración de DLQ (Dead Letter Queue)
     channel.exchange_declare(exchange=DLX_NAME, exchange_type='direct', durable=True)
-
-    # 2. Declarar la Cola de Muertos (DLQ) y atarla al DLX
     channel.queue_declare(queue=DLQ_NAME, durable=True)
     channel.queue_bind(exchange=DLX_NAME, queue=DLQ_NAME, routing_key="dead_message")
 
-    # 3. Declarar la Cola Principal con configuración de DLQ
-    # Si un mensaje es rechazado (nack) o expira, se va al DLX con la routing key "dead_message"
+    # Cola Principal con DLQ
     args = {
         'x-dead-letter-exchange': DLX_NAME,
         'x-dead-letter-routing-key': 'dead_message'
     }
     channel.queue_declare(queue=QUEUE_NAME, durable=True, arguments=args)
-
-    # Le decimos a RabbitMQ que solo nos mande 1 mensaje a la vez (Fair dispatch)
     channel.basic_qos(prefetch_count=1)
 
-    print(" [*] Worker de Inventario esperando pedidos...")
+    print(" [*] Worker con Retries iniciado. Esperando pedidos...")
     
-    # Adaptador para correr función async dentro del callback síncrono de Pika
     def on_message(ch, method, properties, body):
         asyncio.run(process_order(ch, method, properties, body))
 
@@ -101,9 +129,6 @@ def start_consumer():
     channel.start_consuming()
 
 if __name__ == "__main__":
-    # Inicializar DB antes de consumir
     run_async(init_db())
-    # Arrancar consumidor (loop infinito)
-    # Pequeño sleep para esperar a que RabbitMQ levante en el primer arranque
     time.sleep(10) 
     start_consumer()
