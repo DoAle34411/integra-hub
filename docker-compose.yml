@@ -1,8 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. Base de Datos (PostgreSQL)
-  # Necesaria para persistencia de pedidos y analítica[cite: 38].
+  # 1. Base de Datos
   db:
     image: postgres:15-alpine
     container_name: integrahub-db
@@ -23,8 +22,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. Broker de Mensajería (RabbitMQ)
-  # Usamos la imagen "management" para tener la UI requerida en la defensa.
+  # 2. Broker de Mensajería
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: integrahub-mq
@@ -33,8 +31,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     ports:
-      - "5672:5672"   # Puerto para comunicación entre servicios
-      - "15672:15672" # Puerto para la UI de administración (http://localhost:15672)
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - integrahub-net
     healthcheck:
@@ -43,8 +41,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # 3. Backend (FastAPI)
-  # Maneja la API de pedidos y seguridad[cite: 21, 57].
+  # 3. Backend API
   backend:
     build: ./orders-api
     container_name: integrahub-api
@@ -62,28 +59,19 @@ services:
     networks:
       - integrahub-net
 
-  # 4. Frontend (React)
-  # Demo Portal para la defensa "tipo deploy"[cite: 78].
+  # 4. Frontend React
   frontend:
     build: ./frontend
     container_name: integrahub-web
     restart: always
     ports:
-      - "3000:80" # Mapea puerto 80 del contenedor (Nginx) al 3000 de tu PC
+      - "3000:80"
     depends_on:
       - backend
     networks:
       - integrahub-net
 
-volumes:
-  postgres_data:
-
-networks:
-  integrahub-net:
-    driver: bridge
-
   # 5. Worker de Inventario
-  # Procesamiento asíncrono de pedidos
   worker:
     build: ./inventory-worker
     container_name: integrahub-worker
@@ -100,7 +88,6 @@ networks:
       - integrahub-net
 
   # 6. Servicio Legacy (Archivos)
-  # Ingesta de CSVs
   legacy:
     build: ./legacy-service
     container_name: integrahub-legacy
@@ -108,10 +95,18 @@ networks:
     environment:
       DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
     volumes:
-      # Mapeamos una carpeta local 'legacy_inbox' al contenedor
       - ./legacy_inbox:/app/inbox
     depends_on:
       db:
         condition: service_healthy
     networks:
       - integrahub-net
+
+# --- Fin de servicios ---
+
+volumes:
+  postgres_data:
+
+networks:
+  integrahub-net:
+    driver: bridge
