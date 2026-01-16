@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   # 1. Base de Datos
+  # 1. Base de Datos
   db:
     image: postgres:15-alpine
     container_name: integrahub-db
@@ -23,6 +24,7 @@ services:
       retries: 5
 
   # 2. Broker de Mensajería
+  # 2. Broker de Mensajería
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: integrahub-mq
@@ -33,6 +35,8 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - integrahub-net
     healthcheck:
@@ -41,6 +45,7 @@ services:
       timeout: 10s
       retries: 5
 
+  # 3. Backend API
   # 3. Backend API
   backend:
     build: ./orders-api
@@ -60,11 +65,13 @@ services:
       - integrahub-net
 
   # 4. Frontend React
+  # 4. Frontend React
   frontend:
     build: ./frontend
     container_name: integrahub-web
     restart: always
     ports:
+      - "3000:80"
       - "3000:80"
     depends_on:
       - backend
