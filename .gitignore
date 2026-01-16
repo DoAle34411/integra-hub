@@ -1,0 +1,52 @@
+# --- General / Sistema Operativo (Windows/Mac) ---
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- IDEs (VS Code, Pycharm, etc.) ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Entornos Virtuales Python (si los creaste localmente) ---
+venv/
+env/
+.venv/
+
+# NOTA: Asegúrate de tener un .env.example que SÍ se suba
+
+# --- Node.js / React (Frontend) ---
+# Nunca subir node_modules, pesa demasiado y se instala con 'npm install'
+node_modules/
+/frontend/node_modules/
+
+# Builds de producción
+/frontend/build/
+/frontend/dist/
+
+# Logs de npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Docker ---
+# Si mapeaste volúmenes de base de datos a carpetas locales
+postgres_data/
+pgadmin/
+
+# Archivos override locales
+docker-compose.override.yml
+
+# --- Proyecto: IntegraHub Data ---
+# Ignorar CSVs de prueba en la carpeta legacy, pero mantener la carpeta
+legacy_inbox/*.csv
+legacy_inbox/processed/
+legacy_inbox/ERROR_*
+
+# Base de datos SQLite local (si se usó para pruebas rápidas fuera de Docker)
+db.sqlite3
+*.sqlite3

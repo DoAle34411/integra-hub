@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # 1. Base de Datos (PostgreSQL)
+  # Necesaria para persistencia de pedidos y analítica[cite: 38].
+  db:
+    image: postgres:15-alpine
+    container_name: integrahub-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - integrahub-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 2. Broker de Mensajería (RabbitMQ)
+  # Usamos la imagen "management" para tener la UI requerida en la defensa.
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: integrahub-mq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+    ports:
+      - "5672:5672"   # Puerto para comunicación entre servicios
+      - "15672:15672" # Puerto para la UI de administración (http://localhost:15672)
+    networks:
+      - integrahub-net
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # 3. Backend (FastAPI)
+  # Maneja la API de pedidos y seguridad[cite: 21, 57].
+  backend:
+    build: ./orders-api
+    container_name: integrahub-api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - integrahub-net
+
+  # 4. Frontend (React)
+  # Demo Portal para la defensa "tipo deploy"[cite: 78].
+  frontend:
+    build: ./frontend
+    container_name: integrahub-web
+    restart: always
+    ports:
+      - "3000:80" # Mapea puerto 80 del contenedor (Nginx) al 3000 de tu PC
+    depends_on:
+      - backend
+    networks:
+      - integrahub-net
+
+volumes:
+  postgres_data:
+
+networks:
+  integrahub-net:
+    driver: bridge
+
+  # 5. Worker de Inventario
+  # Procesamiento asíncrono de pedidos
+  worker:
+    build: ./inventory-worker
+    container_name: integrahub-worker
+    restart: always
+    environment:
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@rabbitmq:5672/
+    depends_on:
+      backend:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - integrahub-net
+
+  # 6. Servicio Legacy (Archivos)
+  # Ingesta de CSVs
+  legacy:
+    build: ./legacy-service
+    container_name: integrahub-legacy
+    restart: always
+    environment:
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+    volumes:
+      # Mapeamos una carpeta local 'legacy_inbox' al contenedor
+      - ./legacy_inbox:/app/inbox
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - integrahub-net

@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+tortoise-orm
+asyncpg
+pika
+python-multipart
+pyjwt
+passlib[bcrypt]

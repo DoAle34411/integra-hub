@@ -1,0 +1,4 @@
+tortoise-orm
+asyncpg
+pika
+asyncio
