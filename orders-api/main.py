@@ -17,7 +17,7 @@ from auth import create_access_token, verify_password, get_current_user, FAKE_US
 
 app = FastAPI(title="IntegraHub API")
 
-# --- CONFIGURACIÓN DE CORS (¡LA SOLUCIÓN!) ---
+# --- CONFIGURACIÓN DE CORS ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # En producción poner ["http://localhost:3000"], "*" permite a cualquiera
@@ -62,7 +62,7 @@ def health_check():
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = FAKE_USERS_DB.get(form_data.username)
-    # Nota: Asegúrate de tener el fix de contraseña en auth.py o usa las credenciales correctas
+    # Nota: Contar con el fix de contraseña en auth.py o utilizar las credenciales correctas
     if not user or not verify_password(form_data.password, user['password_hash']):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

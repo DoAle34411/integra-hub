@@ -9,7 +9,7 @@ class Order(models.Model):
     status = fields.CharField(max_length=20, default="PENDING")
     created_at = fields.DatetimeField(auto_now_add=True)
     
-    # Guardamos los items como JSON simple para no complicar el MVP con tablas relacionales extra
+    # Guardar los items como JSON simple para no complicar el MVP con tablas relacionales extra
     items = fields.JSONField()
 
     class Meta:

@@ -3,7 +3,7 @@ import time
 import pandas as pd
 import asyncio
 from tortoise import Tortoise, run_async
-from models import Order # Reutilizamos el modelo
+from models import Order # Reutilizar el modelo
 import uuid
 
 # Configuración
@@ -51,8 +51,8 @@ async def process_csv_file(filepath, filename):
 
     except Exception as e:
         print(f" [Legacy] Error procesando archivo: {e}")
-        # En un caso real, moveríamos a una carpeta 'error'
-        # Aquí renombramos con prefijo ERROR
+        # En un caso real, se movería a una carpeta 'error'
+        # Aquí se renombra con prefijo ERROR
         error_path = os.path.join(PROCESSED_DIR, f"ERROR_{filename}")
         if os.path.exists(filepath):
             os.rename(filepath, error_path)
