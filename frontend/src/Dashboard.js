@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from './api';
+import BrandBar from './BrandBar';
 
 function Dashboard({ onLogout }) {
     const [orders, setOrders] = useState([]);
@@ -62,16 +63,14 @@ function Dashboard({ onLogout }) {
     };
 
     return (
-        <div className="container mt-4">
-            <header className="d-flex justify-content-between align-items-center mb-4 border-bottom pb-2">
-                <h1>IntegraHub Portal</h1>
-                <button className="btn btn-outline-danger" onClick={onLogout}>Salir</button>
-            </header>
+        <>
+            <BrandBar right={<button className="btn-udla-outline" onClick={onLogout}>Salir</button>} />
+            <div className="container mt-4">
 
             {/* SECCIÓN 1: STATUS & ANALÍTICA */}
             <div className="row mb-4">
                 <div className="col-md-3">
-                    <div className="card text-white bg-success mb-3">
+                    <div className="card card-udla soft-shadow mb-3">
                         <div className="card-header">System Status</div>
                         <div className="card-body">
                             <h5 className="card-title">API: {status.api}</h5>
@@ -80,7 +79,7 @@ function Dashboard({ onLogout }) {
                     </div>
                 </div>
                 <div className="col-md-3">
-                    <div className="card text-dark bg-light mb-3">
+                    <div className="card card-udla soft-shadow mb-3">
                         <div className="card-header">Total Ventas</div>
                         <div className="card-body">
                             <h5 className="card-title">${metrics?.total_sales || 0}</h5>
@@ -88,7 +87,7 @@ function Dashboard({ onLogout }) {
                     </div>
                 </div>
                 <div className="col-md-3">
-                    <div className="card text-dark bg-light mb-3">
+                    <div className="card card-udla soft-shadow mb-3">
                         <div className="card-header">Pedidos Totales</div>
                         <div className="card-body">
                             <h5 className="card-title">{metrics?.total_orders || 0}</h5>
@@ -101,8 +100,8 @@ function Dashboard({ onLogout }) {
             <div className="row">
                 {/* Formulario de Creación */}
                 <div className="col-md-4">
-                    <div className="card">
-                        <div className="card-header bg-primary text-white">Nuevo Pedido</div>
+                    <div className="card card-udla soft-shadow">
+                        <div className="card-header">Nuevo Pedido</div>
                         <div className="card-body">
                             <div className="mb-3">
                                 <label>Cliente</label>
@@ -114,7 +113,7 @@ function Dashboard({ onLogout }) {
                                 />
                                 <small className="text-muted">Usa "ERROR" para probar fallos.</small>
                             </div>
-                            <button className="btn btn-primary w-100" onClick={handleCreateOrder}>
+                            <button className="btn btn-udla w-100" onClick={handleCreateOrder}>
                                 Crear Pedido (E2E)
                             </button>
                         </div>
@@ -123,7 +122,7 @@ function Dashboard({ onLogout }) {
 
                 {/* Lista de Pedidos (Tracking) */}
                 <div className="col-md-8">
-                    <h3>Últimos Pedidos (Sesión Actual)</h3>
+                    <h3 className="text-udla">Últimos Pedidos (Sesión Actual)</h3>
                     <table className="table table-striped">
                         <thead>
                             <tr>
@@ -140,7 +139,7 @@ function Dashboard({ onLogout }) {
                                     <td>{o.customer_name}</td>
                                     <td>${o.total_amount}</td>
                                     <td>
-                                        <span className={o.customer_name.includes("ERROR") ? "badge bg-danger" : "badge bg-info"}>
+                                        <span className={o.customer_name.includes("ERROR") ? "badge bg-danger" : "badge badge-udla"}>
                                             {o.customer_name.includes("ERROR") ? "FAILED (DLQ)" : "SENT TO QUEUE"}
                                         </span>
                                     </td>
@@ -151,7 +150,7 @@ function Dashboard({ onLogout }) {
                     </table>
                 </div>
             </div>
-        </div>
+        </>
     );
 }
 

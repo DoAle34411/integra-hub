@@ -1,13 +1,150 @@
+:root {
+  --udla-burgundy: #7a1f3d;
+  --udla-burgundy-700: #691a35;
+  --udla-burgundy-300: #a23a58;
+  --udla-accent: #f2a007; /* acento cálido para contraste */
+  --udla-bg: #f9f6f7;
+  --udla-text: #1a1a1a;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+  font-family:
+    "Poppins",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Roboto",
+    "Oxygen",
+    "Ubuntu",
+    "Cantarell",
+    "Fira Sans",
+    "Droid Sans",
+    "Helvetica Neue",
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: var(--udla-text);
+  background:
+    radial-gradient(
+      1200px 600px at 0% 0%,
+      rgba(122, 31, 61, 0.08),
+      transparent 50%
+    ),
+    radial-gradient(
+      1200px 600px at 100% 100%,
+      rgba(242, 160, 7, 0.08),
+      transparent 50%
+    ),
+    var(--udla-bg);
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family:
+    "JetBrains Mono", Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+/* UTILIDADES DE MARCA UDLA */
+.bg-udla {
+  background: linear-gradient(
+    135deg,
+    var(--udla-burgundy),
+    var(--udla-burgundy-300)
+  );
+  color: #fff !important;
+}
+
+.text-udla {
+  color: var(--udla-burgundy);
+}
+.border-udla {
+  border-color: var(--udla-burgundy) !important;
+}
+
+.brand-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  background: linear-gradient(
+    135deg,
+    var(--udla-burgundy) 0%,
+    var(--udla-burgundy-300) 100%
+  );
+  color: #fff;
+  padding: 10px 0;
+  box-shadow: 0 6px 20px rgba(122, 31, 61, 0.25);
+}
+
+.brand-title {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.brand-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.btn-udla {
+  background: var(--udla-burgundy);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 10px 16px;
+  box-shadow: 0 8px 18px rgba(122, 31, 61, 0.35);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background 0.12s ease;
+}
+.btn-udla:hover {
+  background: var(--udla-burgundy-700);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(122, 31, 61, 0.42);
+}
+.btn-udla:active {
+  transform: translateY(0);
+  box-shadow: 0 6px 16px rgba(122, 31, 61, 0.35);
+}
+
+.btn-udla-outline {
+  background: transparent;
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  padding: 8px 14px;
+}
+.btn-udla-outline:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.card-udla {
+  border-radius: 16px;
+  border: 1px solid rgba(122, 31, 61, 0.15);
+  overflow: hidden;
+}
+.card-udla .card-header {
+  background: linear-gradient(
+    135deg,
+    var(--udla-burgundy),
+    var(--udla-burgundy-300)
+  );
+  color: #fff;
+  font-weight: 600;
+}
+.card-udla .card-body {
+  background: #fff;
+}
+
+.badge-udla {
+  background: var(--udla-burgundy);
+}
+
+/* elementos llamativos para 14-20 */
+.fun-accent {
+  color: var(--udla-accent);
+}
+
+.soft-shadow {
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
 }
