@@ -25,7 +25,7 @@ El sistema corre 100% contenerizado sobre Docker y consta de los siguientes micr
 * **Docker Desktop** instalado y corriendo.
 * **Git** (opcional, para clonar).
 
----
+-------
 
 ## 🚀 Inicialización (Quick Start)
 
@@ -36,3 +36,4 @@ Ejecuta el siguiente comando en la raíz del proyecto (donde está el `docker-co
 
 ```bash
 docker compose up -d --build
+
