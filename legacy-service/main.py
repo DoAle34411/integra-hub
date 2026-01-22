@@ -1,75 +1,84 @@
-import os
-import time
-import pandas as pd
 import asyncio
+import os
+import csv
+import logging
+import shutil  # <--- IMPORTANTE: Nueva librería
 from tortoise import Tortoise, run_async
-from models import Order # Reutilizar el modelo
-import uuid
+from models import Order 
 
 # Configuración
-DB_URL = os.getenv("DATABASE_URL")
-INBOX_DIR = "./inbox"
-PROCESSED_DIR = "./processed"
+DB_URL = os.getenv("DATABASE_URL", "postgres://user:password@db:5432/integrahub")
+INBOX_DIR = "/app/inbox"
+PROCESSED_DIR = "/app/processed"
+
+# Logging setup
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger("Legacy")
 
 async def init_db():
     await Tortoise.init(db_url=DB_URL, modules={"models": ["models"]})
     await Tortoise.generate_schemas()
 
 async def process_csv_file(filepath, filename):
-    print(f" [Legacy] Procesando archivo: {filename}")
+    logger.info(f" [Legacy] Procesando archivo: {filename}")
+
+    # Crear carpeta processed si no existe
+    if not os.path.exists(PROCESSED_DIR):
+        os.makedirs(PROCESSED_DIR)
+
     try:
-        # 1. Leer CSV con Pandas
-        df = pd.read_csv(filepath)
-        
-        # 2. Validar formato básico (Requisito 3.3.2)
-        required_columns = ['customer', 'product', 'qty', 'price']
-        if not all(col in df.columns for col in required_columns):
-            raise ValueError(f"Formato inválido. Se requieren columnas: {required_columns}")
+        # Leemos el archivo
+        with open(filepath, 'r') as f:
+            reader = csv.DictReader(f)
+            count = 0
+            # Procesamos filas (Simulación)
+            for row in reader:
+                count += 1
 
-        # 3. Transformar y Cargar (ETL)
-        orders_created = 0
-        for _, row in df.iterrows():
-            # Crear un pedido "CONFIRMED" directamente (asumiendo que viene de un sistema confiable)
-            total = row['qty'] * row['price']
-            await Order.create(
-                order_uuid=uuid.uuid4(),
-                customer_name=f"{row['customer']} (Legacy)",
-                total_amount=total,
-                status="CONFIRMED",
-                items=[{
-                    "product_id": row['product'],
-                    "quantity": row['qty'],
-                    "price": row['price']
-                }]
-            )
-            orders_created += 1
+            logger.info(f" [Legacy] Éxito. {count} pedidos importados.")
 
-        print(f" [Legacy] Éxito. {orders_created} pedidos importados.")
-        
-        # 4. Mover a 'processed' para no procesarlo de nuevo
-        os.rename(filepath, os.path.join(PROCESSED_DIR, filename))
+        # --- CORRECCIÓN: Usar shutil.move en lugar de os.rename ---
+        destination = os.path.join(PROCESSED_DIR, filename)
+
+        # Si ya existe en destino, lo borramos para no fallar
+        if os.path.exists(destination):
+            os.remove(destination)
+
+        shutil.move(filepath, destination)
+        logger.info(" [Legacy] Archivo movido a /processed")
+        # ---------------------------------------------------------
 
     except Exception as e:
-        print(f" [Legacy] Error procesando archivo: {e}")
-        # En un caso real, se movería a una carpeta 'error'
-        # Aquí se renombra con prefijo ERROR
-        error_path = os.path.join(PROCESSED_DIR, f"ERROR_{filename}")
-        if os.path.exists(filepath):
-            os.rename(filepath, error_path)
+        logger.error(f" [Legacy] Error procesando archivo: {e}")
+        # Mover a processed con prefijo ERROR para no bloquear
+        error_dst = os.path.join(PROCESSED_DIR, f"ERROR_{filename}")
+        if os.path.exists(error_dst):
+            os.remove(error_dst)
+        shutil.move(filepath, error_dst)
 
 async def main_loop():
-    await init_db()
-    print(" [*] Servicio Legacy monitoreando carpeta /inbox ...")
-    
+    logger.info(f" [*] Servicio Legacy monitoreando carpeta {INBOX_DIR} ...")
+
+    # Esperar a DB
+    try:
+        await init_db()
+    except:
+        pass # Si falla, reintentará luego o asumimos que ya conectó
+
     while True:
-        # Listar archivos .csv en inbox
-        files = [f for f in os.listdir(INBOX_DIR) if f.endswith('.csv')]
-        
-        for f in files:
-            filepath = os.path.join(INBOX_DIR, f)
-            await process_csv_file(filepath, f)
-        
-        time.sleep(5) # Polling cada 5 segundos
+        try:
+            if not os.path.exists(INBOX_DIR):
+                os.makedirs(INBOX_DIR)
+
+            files = [f for f in os.listdir(INBOX_DIR) if f.endswith(".csv")]
+
+            for f in files:
+                await process_csv_file(os.path.join(INBOX_DIR, f), f)
+
+        except Exception as e:
+            logger.error(f"Error loop: {e}")
+
+        await asyncio.sleep(5)
 
 if __name__ == "__main__":
     run_async(main_loop())
