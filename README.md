@@ -18,7 +18,7 @@ El sistema corre 100% contenerizado sobre Docker y consta de los siguientes micr
 * **Legacy Service:** Proceso Batch que ingesta archivos CSV.
 * **Database:** PostgreSQL (Persistencia).
 
----
+------
 
 ## 🛠️ Requisitos Previos
 
